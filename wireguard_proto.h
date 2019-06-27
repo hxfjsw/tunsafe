@@ -19,6 +19,8 @@
 #endif  // WITH_BYTELL_HASHMAP
 
 // Threading macros that enable locks only in MT builds
+//多线程版本的宏定义
+//定义了多线程中使用的锁
 #if WITH_WG_THREADING
 #define WG_SCOPED_LOCK(name) ScopedLock scoped_lock(&name)
 #define WG_ACQUIRE_LOCK(name) name.Acquire()
@@ -48,6 +50,7 @@
 #endif  // WITH_WG_THREADING
 
 // bytell hash is faster but more untested
+//速度更高的hash表
 #if WITH_BYTELL_HASHMAP
 #define WG_HASHTABLE_IMPL ska::bytell_hash_map
 #else
@@ -76,13 +79,15 @@ enum ProtocolLimits {
   MESSAGE_MINIMUM_SIZE = 16,
 };
 
+//协议类型
 enum MessageType {
-  MESSAGE_HANDSHAKE_INITIATION = 1,
-  MESSAGE_HANDSHAKE_RESPONSE = 2,
+  MESSAGE_HANDSHAKE_INITIATION = 1, //握手包初始化
+  MESSAGE_HANDSHAKE_RESPONSE = 2,   //握手包回应
   MESSAGE_HANDSHAKE_COOKIE = 3,
   MESSAGE_DATA = 4,
 };
 
+//定义消息包长度
 enum MessageFieldSizes {
   WG_COOKIE_LEN = 16,
   WG_COOKIE_NONCE_LEN = 24,
@@ -121,14 +126,17 @@ struct MessageMacs {
 };
 STATIC_ASSERT(sizeof(MessageMacs) == 32, MessageMacs_wrong_size);
 
+//定一个握手包的数据格式
 struct MessageHandshakeInitiation {
-  uint32 type;
-  uint32 sender_key_id;
-  uint8 ephemeral[WG_PUBLIC_KEY_LEN];
-  uint8 static_enc[WG_PUBLIC_KEY_LEN + WG_MAC_LEN];
-  uint8 timestamp_enc[WG_TIMESTAMP_LEN + WG_MAC_LEN];
-  MessageMacs mac;
+  uint32 type;                                              //握手类型
+  uint32 sender_key_id;                                     //
+  uint8 ephemeral[WG_PUBLIC_KEY_LEN];                       //初始化向量
+  uint8 static_enc[WG_PUBLIC_KEY_LEN + WG_MAC_LEN];         //
+  uint8 timestamp_enc[WG_TIMESTAMP_LEN + WG_MAC_LEN];       //时间戳
+  MessageMacs mac;                                          //消息的真实mac地址
 };
+
+//断言一个数据包的长度为148位
 STATIC_ASSERT(sizeof(MessageHandshakeInitiation) == 148, MessageHandshakeInitiation_wrong_size);
 
 // Format of variable length payload.
@@ -137,7 +145,7 @@ STATIC_ASSERT(sizeof(MessageHandshakeInitiation) == 148, MessageHandshakeInitiat
 // <payload>
 
 
-
+//握手包回应数据格式
 struct MessageHandshakeResponse {
   uint32 type;
   uint32 sender_key_id;

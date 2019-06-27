@@ -44,13 +44,13 @@
 #endif
 
 void tunsafe_die(const char *msg) {
-  fprintf(stderr, "%s\n", msg);
-  exit(1);
+    fprintf(stderr, "%s\n", msg);
+    exit(1);
 }
 
 void SetThreadName(const char *name) {
 #if defined(OS_LINUX)
-  prctl(PR_SET_NAME, name, 0, 0, 0);
+    prctl(PR_SET_NAME, name, 0, 0, 0);
 #endif  // defined(OS_LINUX)
 }
 
@@ -347,236 +347,270 @@ int open_tun(char *devname, size_t devname_size) {
 #endif
 
 int open_udp(int listen_on_port) {
-  int udp_fd = socket(AF_INET, SOCK_DGRAM, 0);
-  if (udp_fd < 0) return udp_fd;
-  sockaddr_in sin = {0};
-  sin.sin_family = AF_INET;
-  sin.sin_port = htons(listen_on_port);
-  if (bind(udp_fd, (struct sockaddr*)&sin, sizeof(sin)) != 0) {
-    close(udp_fd);
-    return -1;
-  }
-  return udp_fd;
+    int udp_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (udp_fd < 0) return udp_fd;
+    sockaddr_in sin = {0};
+    sin.sin_family = AF_INET;
+    sin.sin_port = htons(listen_on_port);
+    if (bind(udp_fd, (struct sockaddr *) &sin, sizeof(sin)) != 0) {
+        close(udp_fd);
+        return -1;
+    }
+    return udp_fd;
 }
 
-TunsafeBackendBsd::TunsafeBackendBsd() 
-    : processor_(NULL) {
-  devname_[0] = 0;
-  tun_interface_gone_ = false;
+TunsafeBackendBsd::TunsafeBackendBsd()
+        : processor_(NULL) {
+    devname_[0] = 0;
+    tun_interface_gone_ = false;
 }
 
 TunsafeBackendBsd::~TunsafeBackendBsd() {
 }
 
 static uint32 CidrToNetmaskV4(int cidr) {
-  return cidr == 32 ? 0xffffffff : 0xffffffff << (32 - cidr);
+    return cidr == 32 ? 0xffffffff : 0xffffffff << (32 - cidr);
 }
 
 static uint32 ComputeIpv4DefaultRoute(uint32 ip, uint32 netmask) {
-  uint32 default_route_v4 = (ip & netmask) | 1;
-  if (default_route_v4 == ip)
-    default_route_v4++;
-  return default_route_v4;
+    uint32 default_route_v4 = (ip & netmask) | 1;
+    if (default_route_v4 == ip)
+        default_route_v4++;
+    return default_route_v4;
 }
 
 static void ComputeIpv6DefaultRoute(const uint8 *ipv6_address, uint8 ipv6_cidr, uint8 *default_route_v6) {
-  memcpy(default_route_v6, ipv6_address, 16);
-  // clear the last bits of the ipv6 address to match the cidr.
-  size_t n = (ipv6_cidr + 7) >> 3;
-  memset(&default_route_v6[n], 0, 16 - n);
-  if (n == 0)
-    return;
-  // adjust the final byte
-  default_route_v6[n - 1] &= ~(0xff >> (ipv6_cidr & 7));
-  // set the very last byte to something
-  default_route_v6[15] |= 1;
-  // ensure it doesn't collide
-  if (memcmp(default_route_v6, ipv6_address, 16) == 0)
-    default_route_v6[15] ^= 3;
+    memcpy(default_route_v6, ipv6_address, 16);
+    // clear the last bits of the ipv6 address to match the cidr.
+    size_t n = (ipv6_cidr + 7) >> 3;
+    memset(&default_route_v6[n], 0, 16 - n);
+    if (n == 0)
+        return;
+    // adjust the final byte
+    default_route_v6[n - 1] &= ~(0xff >> (ipv6_cidr & 7));
+    // set the very last byte to something
+    default_route_v6[15] |= 1;
+    // ensure it doesn't collide
+    if (memcmp(default_route_v6, ipv6_address, 16) == 0)
+        default_route_v6[15] ^= 3;
 }
 
 void TunsafeBackendBsd::AddRoute(uint32 ip, uint32 cidr, uint32 gw, const char *dev) {
-  uint32 ip_be, gw_be;
-  WriteBE32(&ip_be, ip);
-  WriteBE32(&gw_be, gw);
-  AddRoute(AF_INET, &ip_be, cidr, &gw_be, dev);
+    uint32 ip_be, gw_be;
+    WriteBE32(&ip_be, ip);
+    WriteBE32(&gw_be, gw);
+    AddRoute(AF_INET, &ip_be, cidr, &gw_be, dev);
 }
 
 static void AddOrRemoveRoute(const RouteInfo &cd, bool remove) {
-  char buf1[kSizeOfAddress], buf2[kSizeOfAddress];
+    char buf1[kSizeOfAddress], buf2[kSizeOfAddress];
 
-  print_ip_prefix(buf1, cd.family, cd.ip, cd.cidr);
-  print_ip_prefix(buf2, cd.family, cd.gw, -1);
+    print_ip_prefix(buf1, cd.family, cd.ip, cd.cidr);
+    print_ip_prefix(buf2, cd.family, cd.gw, -1);
 
 #if defined(OS_LINUX)
-  const char *cmd = remove ? "del" : "add";
-  const char *proto = (cd.family == AF_INET) ? NULL : "-6";
-    if (cd.dev.empty()) {
-    RunCommand("/sbin/ip %s route %s %s via %s", proto, cmd, buf1, buf2);
-  } else {
-    RunCommand("/sbin/ip %s route %s %s dev %s", proto, cmd, buf1, cd.dev.c_str());
-  }
+    const char *cmd = remove ? "del" : "add";
+    const char *proto = (cd.family == AF_INET) ? NULL : "-6";
+      if (cd.dev.empty()) {
+      RunCommand("/sbin/ip %s route %s %s via %s", proto, cmd, buf1, buf2);
+    } else {
+      RunCommand("/sbin/ip %s route %s %s dev %s", proto, cmd, buf1, cd.dev.c_str());
+    }
 #elif defined(OS_MACOSX) || defined(OS_FREEBSD)
-  const char *cmd = remove ? "delete" : "add";
-  if (cd.family == AF_INET) {
-    RunCommand("/sbin/route -q %s %s %s", cmd, buf1, buf2);
-  } else {
-    RunCommand("/sbin/route -q %s -inet6 %s %s", cmd, buf1, buf2);
-  }
+    const char *cmd = remove ? "delete" : "add";
+    if (cd.family == AF_INET) {
+      RunCommand("/sbin/route -q %s %s %s", cmd, buf1, buf2);
+    } else {
+      RunCommand("/sbin/route -q %s -inet6 %s %s", cmd, buf1, buf2);
+    }
 #endif
 }
 
 bool TunsafeBackendBsd::AddRoute(int family, const void *dest, int dest_prefix, const void *gateway, const char *dev) {
-  RouteInfo c;
+    RouteInfo c;
 
-  c.dev = dev ? dev : "";
-  c.family = family;
-  size_t len = (family == AF_INET) ? 4 : 16;
-  memcpy(c.ip, dest, len);
-  memcpy(c.gw, gateway, len);
-  c.cidr = dest_prefix;
-  cleanup_commands_.push_back(c);
-  AddOrRemoveRoute(c, false);
-  return true;
+    c.dev = dev ? dev : "";
+    c.family = family;
+    size_t len = (family == AF_INET) ? 4 : 16;
+    memcpy(c.ip, dest, len);
+    memcpy(c.gw, gateway, len);
+    c.cidr = dest_prefix;
+    cleanup_commands_.push_back(c);
+    AddOrRemoveRoute(c, false);
+    return true;
 }
 
 void TunsafeBackendBsd::DelRoute(const RouteInfo &cd) {
-  AddOrRemoveRoute(cd, true);
+    AddOrRemoveRoute(cd, true);
 }
 
 static bool IsIpv6AddressSet(const void *p) {
-  return (ReadLE64(p) | ReadLE64((char*)p + 8)) != 0;
+    return (ReadLE64(p) | ReadLE64((char *) p + 8)) != 0;
 }
- 
+
 // Called to initialize tun
-bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) override {
-  char buf[kSizeOfAddress];
+bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out)
 
-  if (!RunPrePostCommand(config.pre_post_commands.pre_up)) {
-    RERROR("Pre command failed!");
-    return false;
-  }
+override {
+char buf[kSizeOfAddress];
 
-  out->enable_neighbor_discovery_spoofing = false;
+if (!
+RunPrePostCommand(config
+.pre_post_commands.pre_up)) {
+RERROR("Pre command failed!");
+return false;
+}
 
-  if (!InitializeTun(devname_))
-    return false;
-  
-  uint32 netmask = CidrToNetmaskV4(config.cidr);
-  uint32 default_route_v4 = ComputeIpv4DefaultRoute(config.ip, netmask);
+out->
+enable_neighbor_discovery_spoofing = false;
+
+if (!
+InitializeTun(devname_)
+)
+return false;
+
+uint32 netmask = CidrToNetmaskV4(config.cidr);
+uint32 default_route_v4 = ComputeIpv4DefaultRoute(config.ip, netmask);
 
 
 #if defined(OS_LINUX)
-  if (config.ip) {
-    char ip[4];
-    WriteBE32(ip, config.ip);
-    RunCommand("/sbin/ip address add dev %s %s", devname_, print_ip_prefix(buf, AF_INET, ip, config.cidr));
-  }
-  if (config.ipv6_cidr) {
-    RunCommand("/sbin/ip address add dev %s %s", devname_, print_ip_prefix(buf, AF_INET6, config.ipv6_address, config.ipv6_cidr));
-  }
-  RunCommand("/sbin/ip link set dev %s mtu %d up", devname_, config.mtu);
+if (config.ip) {
+  char ip[4];
+  WriteBE32(ip, config.ip);
+  RunCommand("/sbin/ip address add dev %s %s", devname_, print_ip_prefix(buf, AF_INET, ip, config.cidr));
+}
+if (config.ipv6_cidr) {
+  RunCommand("/sbin/ip address add dev %s %s", devname_, print_ip_prefix(buf, AF_INET6, config.ipv6_address, config.ipv6_cidr));
+}
+RunCommand("/sbin/ip link set dev %s mtu %d up", devname_, config.mtu);
 #else  // !defined(OS_LINUX)
-  if (config.ip) {
-    RunCommand("/sbin/ifconfig %s %A mtu %d %A netmask %A up", devname_, config.ip, config.mtu, config.ip, netmask);
-  }
-  if (config.ipv6_cidr) {
-    RunCommand("/sbin/ifconfig %s inet6 add %s", devname_, print_ip_prefix(buf, AF_INET6, config.ipv6_address, config.ipv6_cidr));
-  }
+if (config.ip) {
+RunCommand("/sbin/ifconfig %s %A mtu %d %A netmask %A up", devname_, config.ip, config.mtu, config.ip, netmask);
+}
+if (config.ipv6_cidr) {
+RunCommand("/sbin/ifconfig %s inet6 add %s", devname_,
+print_ip_prefix(buf, AF_INET6, config
+.ipv6_address, config.ipv6_cidr));
+}
 #endif  // !defined(OS_LINUX)
 
-  if (config.ip) {
-    AddRoute(config.ip & netmask, config.cidr, config.ip, devname_);
-  }
+if (config.ip) {
+AddRoute(config
+.
+ip &netmask, config
+.cidr, config.ip, devname_);
+}
 
-  if (config.use_ipv4_default_route) {
-    if (config.default_route_endpoint_v4) {
-      uint32 ipv4_default_gw;
-      char default_iface[16];
-      if (!GetDefaultRoute(default_iface, sizeof(default_iface), &ipv4_default_gw)) {
-        RERROR("Unable to determine default interface.");
-        return false;
-      }
-      AddRoute(config.default_route_endpoint_v4, 32, ipv4_default_gw, NULL);
-      for (auto it = config.excluded_ips.begin(); it != config.excluded_ips.end(); ++it) {
-        if (it->size == 32)
-          AddRoute(ReadBE32(it->addr), it->cidr, ipv4_default_gw, default_iface);
-      }
-    }
-    AddRoute(0x00000000, 1, default_route_v4, devname_);
-    AddRoute(0x80000000, 1, default_route_v4, devname_);
-  }
+if (config.use_ipv4_default_route) {
+if (config.default_route_endpoint_v4) {
+uint32 ipv4_default_gw;
+char default_iface[16];
+if (!
+GetDefaultRoute(default_iface,
+sizeof(default_iface), &ipv4_default_gw)) {
+RERROR("Unable to determine default interface.");
+return false;
+}
+AddRoute(config
+.default_route_endpoint_v4, 32, ipv4_default_gw, NULL);
+for (
+auto it = config.excluded_ips.begin();
+it != config.excluded_ips.
 
-  uint8 default_route_v6[16];
+end();
 
-  if (config.ipv6_cidr) {
-    static const uint8 matchall_1_route[17] = {0x80, 0, 0, 0};
-    ComputeIpv6DefaultRoute(config.ipv6_address, config.ipv6_cidr, default_route_v6);
-    if (config.use_ipv6_default_route) {
-      if (IsIpv6AddressSet(config.default_route_endpoint_v6)) {
-        RERROR("default_route_endpoint_v6 not supported");
-      }
-      AddRoute(AF_INET6, matchall_1_route + 1, 1, default_route_v6, devname_);
-      AddRoute(AF_INET6, matchall_1_route + 0, 1, default_route_v6, devname_);
-    }
-  }
+++it) {
+if (it->size == 32)
+AddRoute(ReadBE32(it->addr), it->cidr, ipv4_default_gw, default_iface);
+}
+}
+AddRoute(0x00000000, 1, default_route_v4, devname_);
+AddRoute(0x80000000, 1, default_route_v4, devname_);
+}
 
-  // Add all the extra routes
-  for (auto it = config.extra_routes.begin(); it != config.extra_routes.end(); ++it) {
-    if (it->size == 32) {
-      AddRoute(ReadBE32(it->addr), it->cidr, default_route_v4, devname_);
-    } else if (it->size == 128 && config.ipv6_cidr) {
-      AddRoute(AF_INET6, it->addr, it->cidr, default_route_v6, devname_);
-    }
-  }
+uint8 default_route_v6[16];
 
-  RunPrePostCommand(config.pre_post_commands.post_up);
+if (config.ipv6_cidr) {
+static const uint8 matchall_1_route[17] = {0x80, 0, 0, 0};
+ComputeIpv6DefaultRoute(config
+.ipv6_address, config.ipv6_cidr, default_route_v6);
+if (config.use_ipv6_default_route) {
+if (
+IsIpv6AddressSet(config
+.default_route_endpoint_v6)) {
+RERROR("default_route_endpoint_v6 not supported");
+}
+AddRoute(AF_INET6, matchall_1_route
++ 1, 1, default_route_v6, devname_);
+AddRoute(AF_INET6, matchall_1_route
++ 0, 1, default_route_v6, devname_);
+}
+}
 
-  pre_down_ = std::move(config.pre_post_commands.pre_down);
-  post_down_ = std::move(config.pre_post_commands.post_down);
+// Add all the extra routes
+for (
+auto it = config.extra_routes.begin();
+it != config.extra_routes.
 
-  return true;
+end();
+
+++it) {
+if (it->size == 32) {
+AddRoute(ReadBE32(it->addr), it->cidr, default_route_v4, devname_);
+} else if (it->size == 128 && config.ipv6_cidr) {
+AddRoute(AF_INET6, it
+->addr, it->cidr, default_route_v6, devname_);
+}
+}
+
+RunPrePostCommand(config
+.pre_post_commands.post_up);
+
+pre_down_ = std::move(config.pre_post_commands.pre_down);
+post_down_ = std::move(config.pre_post_commands.post_down);
+
+return true;
 }
 
 void TunsafeBackendBsd::CleanupRoutes() {
-  RunPrePostCommand(pre_down_);
+    RunPrePostCommand(pre_down_);
 
-  for(auto it = cleanup_commands_.begin(); it != cleanup_commands_.end(); ++it) {
-    if (!tun_interface_gone_ || strcmp(it->dev.c_str(), devname_) != 0)
-      DelRoute(*it);
-  }
-  cleanup_commands_.clear();
+    for (auto it = cleanup_commands_.begin(); it != cleanup_commands_.end(); ++it) {
+        if (!tun_interface_gone_ || strcmp(it->dev.c_str(), devname_) != 0)
+            DelRoute(*it);
+    }
+    cleanup_commands_.clear();
 
-  RunPrePostCommand(post_down_);
+    RunPrePostCommand(post_down_);
 
-  pre_down_.clear();
-  post_down_.clear();
+    pre_down_.clear();
+    post_down_.clear();
 }
 
 void TunsafeBackendBsd::SetTunDeviceName(const char *name) {
-  my_strlcpy(devname_, sizeof(devname_), name);
+    my_strlcpy(devname_, sizeof(devname_), name);
 }
 
 static bool RunOneCommand(const std::string &cmd) {
-  RINFO("Run: %s", cmd.c_str());
-  int exit_code = system(cmd.c_str());
-  if (exit_code) {
-    RERROR("Run Failed (%d) : %s", exit_code, cmd.c_str());
-    return false;
-  }
-  return true;
+    RINFO("Run: %s", cmd.c_str());
+    int exit_code = system(cmd.c_str());
+    if (exit_code) {
+        RERROR("Run Failed (%d) : %s", exit_code, cmd.c_str());
+        return false;
+    }
+    return true;
 }
 
-bool TunsafeBackendBsd::RunPrePostCommand(const std::vector<std::string> &vec) {
-  bool success = true;
-  for (auto it = vec.begin(); it != vec.end(); ++it) {
-    success &= RunOneCommand(*it);
-  }
-  return success;
+bool TunsafeBackendBsd::RunPrePostCommand(const std::vector <std::string> &vec) {
+    bool success = true;
+    for (auto it = vec.begin(); it != vec.end(); ++it) {
+        success &= RunOneCommand(*it);
+    }
+    return success;
 }
 
 #if defined(OS_LINUX)
-UnixSocketDeletionWatcher::UnixSocketDeletionWatcher() 
+UnixSocketDeletionWatcher::UnixSocketDeletionWatcher()
     : inotify_fd_(-1) {
   pipes_[0] = -1;
   pipes_[0] = -1;
@@ -657,8 +691,8 @@ void *UnixSocketDeletionWatcher::RunThreadInner() {
 #else  // !defined(OS_LINUX)
 
 bool UnixSocketDeletionWatcher::Poll(const char *path) {
-  struct stat st;
-  return lstat(path, &st) == -1 && errno == ENOENT;
+    struct stat st;
+    return lstat(path, &st) == -1 && errno == ENOENT;
 }
 
 #endif // !defined(OS_LINUX)
@@ -666,168 +700,175 @@ bool UnixSocketDeletionWatcher::Poll(const char *path) {
 static TunsafeBackendBsd *g_tunsafe_backend_bsd;
 
 static void SigAlrm(int sig) {
-  if (g_tunsafe_backend_bsd)
-    g_tunsafe_backend_bsd->HandleSigAlrm();
+    if (g_tunsafe_backend_bsd)
+        g_tunsafe_backend_bsd->HandleSigAlrm();
 }
 
 static bool did_ctrlc;
 
 void SigInt(int sig) {
-  if (did_ctrlc)
-    exit(1);
-  did_ctrlc = true;
-  write(1, "Ctrl-C detected. Exiting. Press again to force quit.\n", sizeof("Ctrl-C detected. Exiting. Press again to force quit.\n")-1);
-  
-  // todo: fix signal safety?
-  if (g_tunsafe_backend_bsd)
-    g_tunsafe_backend_bsd->HandleExit();
+    if (did_ctrlc)
+        exit(1);
+    did_ctrlc = true;
+    write(1, "Ctrl-C detected. Exiting. Press again to force quit.\n",
+          sizeof("Ctrl-C detected. Exiting. Press again to force quit.\n") - 1);
+
+    // todo: fix signal safety?
+    if (g_tunsafe_backend_bsd)
+        g_tunsafe_backend_bsd->HandleExit();
 }
 
 void TunsafeBackendBsd::RunLoop() {
-  assert(!g_tunsafe_backend_bsd);
-  assert(processor_);
+    assert(!g_tunsafe_backend_bsd);
+    assert(processor_);
 
-  sigset_t mask;
+    sigset_t mask;
 
-  g_tunsafe_backend_bsd = this;
+    g_tunsafe_backend_bsd = this;
 
-  // We want an alarm signal every second.
-  {
-    struct sigaction act = {0};
-    act.sa_handler = SigAlrm;
-    if (sigaction(SIGALRM, &act, NULL) < 0) {
-      RERROR("Unable to install SIGALRM handler.");
-      return;
+    // We want an alarm signal every second.
+    {
+        struct sigaction act = {0};
+        act.sa_handler = SigAlrm;
+        if (sigaction(SIGALRM, &act, NULL) < 0) {
+            RERROR("Unable to install SIGALRM handler.");
+            return;
+        }
     }
-  }
 
-  {
-    struct sigaction act = {0};
-    act.sa_handler = SigInt;
-    if (sigaction(SIGINT, &act, NULL) < 0) {
-      RERROR("Unable to install SIGINT handler.");
-      return;
+    {
+        struct sigaction act = {0};
+        act.sa_handler = SigInt;
+        if (sigaction(SIGINT, &act, NULL) < 0) {
+            RERROR("Unable to install SIGINT handler.");
+            return;
+        }
     }
-  }
 
 #if defined(OS_LINUX) || defined(OS_FREEBSD)
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGALRM);
-  if (sigprocmask(SIG_BLOCK, &mask, &orig_signal_mask_) < 0) {
-    perror("sigprocmask");
-    return;
-  }
-
-  {
-    struct itimerspec tv = {0};
-    struct sigevent sev;
-    timer_t timer_id;
-
-    tv.it_interval.tv_sec = 1;
-    tv.it_value.tv_sec = 1;
-
-    sev.sigev_notify = SIGEV_SIGNAL;
-    sev.sigev_signo = SIGALRM;
-    sev.sigev_value.sival_ptr = NULL;
-
-    if (timer_create(CLOCK_MONOTONIC, &sev, &timer_id) < 0) {
-      RERROR("timer_create failed");
-      return;
-    }    
-
-    if (timer_settime(timer_id, 0, &tv, NULL) < 0) {
-      RERROR("timer_settime failed");
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGALRM);
+    if (sigprocmask(SIG_BLOCK, &mask, &orig_signal_mask_) < 0) {
+      perror("sigprocmask");
       return;
     }
-  }
+
+    {
+      struct itimerspec tv = {0};
+      struct sigevent sev;
+      timer_t timer_id;
+
+      tv.it_interval.tv_sec = 1;
+      tv.it_value.tv_sec = 1;
+
+      sev.sigev_notify = SIGEV_SIGNAL;
+      sev.sigev_signo = SIGALRM;
+      sev.sigev_value.sival_ptr = NULL;
+
+      if (timer_create(CLOCK_MONOTONIC, &sev, &timer_id) < 0) {
+        RERROR("timer_create failed");
+        return;
+      }
+
+      if (timer_settime(timer_id, 0, &tv, NULL) < 0) {
+        RERROR("timer_settime failed");
+        return;
+      }
+    }
 #elif defined(OS_MACOSX)
-  ualarm(1000000, 1000000);
+    ualarm(1000000, 1000000);
 #endif
 
-  RunLoopInner();
+    RunLoopInner();
 
-  g_tunsafe_backend_bsd = NULL;
+    g_tunsafe_backend_bsd = NULL;
 }
 
 void InitCpuFeatures();
+
 void Benchmark();
 
 
 const char *print_ip(char buf[kSizeOfAddress], in_addr_t ip) {
-  snprintf(buf, kSizeOfAddress, "%d.%d.%d.%d", (ip >> 24) & 0xff, (ip >> 16) & 0xff, (ip >> 8) & 0xff, (ip >> 0) & 0xff);
-  return buf;
+    snprintf(buf, kSizeOfAddress, "%d.%d.%d.%d", (ip >> 24) & 0xff, (ip >> 16) & 0xff, (ip >> 8) & 0xff,
+             (ip >> 0) & 0xff);
+    return buf;
 }
 
 class MyProcessorDelegate : public ProcessorDelegate {
 public:
-  MyProcessorDelegate() {
-    wg_processor_ = NULL;
-    is_connected_ = false;
-  }
-
-  virtual void OnConnected() override {
-    if (!is_connected_) {
-      uint32 ipv4_ip = ReadBE32(wg_processor_->tun_addr().addr);
-      char buf[kSizeOfAddress];
-      RINFO("Connection established. IP %s", print_ip(buf, ipv4_ip));
-      is_connected_ = true;
+    MyProcessorDelegate() {
+        wg_processor_ = NULL;
+        is_connected_ = false;
     }
-  }
-  virtual void OnConnectionRetry(uint32 attempts) override {
-    if (is_connected_ && attempts >= 3) {
-      is_connected_ = false;
-      RINFO("Reconnecting...");
-    }
-  }
 
-  WireguardProcessor *wg_processor_;
-  bool is_connected_;
+    virtual void OnConnected() override {
+        if (!is_connected_) {
+            uint32 ipv4_ip = ReadBE32(wg_processor_->tun_addr().addr);
+            char buf[kSizeOfAddress];
+            RINFO("Connection established. IP %s", print_ip(buf, ipv4_ip));
+            is_connected_ = true;
+        }
+    }
+
+    virtual void OnConnectionRetry(uint32 attempts) override {
+        if (is_connected_ && attempts >= 3) {
+            is_connected_ = false;
+            RINFO("Reconnecting...");
+        }
+    }
+
+    WireguardProcessor *wg_processor_;
+    bool is_connected_;
 };
 
+//linux真实的main日寇
 int main(int argc, char **argv) {
-  CommandLineOutput cmd = {0};
+    CommandLineOutput cmd = {0};
 
-  InitCpuFeatures();
+    InitCpuFeatures();
 
-  if (argc == 2 && strcmp(argv[1], "--benchmark") == 0) {
-    Benchmark();
-    return 0;
-  }
+    if (argc == 2 && strcmp(argv[1], "--benchmark") == 0) {
+        Benchmark();
+        return 0;
+    }
 
-  int rv = HandleCommandLine(argc, argv, &cmd);
-  if (!cmd.filename_to_load)
-    return rv;
-  
+    int rv = HandleCommandLine(argc, argv, &cmd);
+    if (!cmd.filename_to_load)
+        return rv;
+
 #if defined(OS_MACOSX)
-  InitOsxGetMilliseconds();
+    InitOsxGetMilliseconds();
 #endif
 
-  SetThreadName("tunsafe-m");
+    SetThreadName("tunsafe-m");
 
-  MyProcessorDelegate my_procdel;
-  TunsafeBackendBsd *backend = CreateTunsafeBackendBsd();
-  if (cmd.interface_name)
-    backend->SetTunDeviceName(cmd.interface_name);
+    MyProcessorDelegate my_procdel;
+    TunsafeBackendBsd *backend = CreateTunsafeBackendBsd();
+    if (cmd.interface_name)
+        backend->SetTunDeviceName(cmd.interface_name);
 
-  WireguardProcessor wg(backend, backend, &my_procdel);
+    WireguardProcessor wg(backend, backend, &my_procdel);
 
-  my_procdel.wg_processor_ = &wg;
-  backend->SetProcessor(&wg);
+    my_procdel.wg_processor_ = &wg;
+    backend->SetProcessor(&wg);
 
-  DnsResolver dns_resolver(NULL);
-  if (*cmd.filename_to_load && !ParseWireGuardConfigFile(&wg, cmd.filename_to_load, &dns_resolver))
-    return 1;
-  if (!wg.Start()) return 1;
+    DnsResolver dns_resolver(NULL);
+    if (*cmd.filename_to_load && !ParseWireGuardConfigFile(&wg, cmd.filename_to_load, &dns_resolver))
+        return 1;
+    if (!wg.Start()) return 1;
 
-  if (cmd.daemon) {
-    fprintf(stderr, "Switching to daemon mode...\n");
-    if (daemon(0, 0) == -1)
-      perror("daemon() failed");
-  }
 
-  backend->RunLoop();
-  backend->CleanupRoutes();
-  delete backend;
+    if (cmd.daemon) {
+        //后台进程模式
+        fprintf(stderr, "Switching to daemon mode...\n");
+        if (daemon(0, 0) == -1)
+            perror("daemon() failed");
+    }
 
-  return 0;
+    backend->RunLoop();
+    backend->CleanupRoutes();
+    delete backend;
+
+    return 0;
 }

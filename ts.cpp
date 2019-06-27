@@ -901,6 +901,7 @@ static bool ConsoleSupportsColorCodes() {
 }
 
 // This is integrated into the main tunsafe binary on posix systems
+//这是一个命令行的控制台
 int main(int argc, char **argv) {
 
   // Enable color codes on Windows 10+

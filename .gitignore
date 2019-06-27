@@ -9,3 +9,8 @@
 /*.vspx
 /installer/*.zip
 /.idea
+/*.o
+/tunsafe
+/tunsafe.unstripped
+/*.zip
+/*.dSYM
