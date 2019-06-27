@@ -13,5 +13,5 @@ poly1305-x64-osx.o
 cp tunsafe tunsafe.unstripped
 strip tunsafe
 rm -f tunsafe_osx.zip
-zip tunsafe_osx.zip tunsafe readme_osx.txt
+#zip tunsafe_osx.zip tunsafe readme_osx.txt
 

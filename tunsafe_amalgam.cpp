@@ -1,5 +1,7 @@
 #include "build_config.h"
 
+// 条件编译主入口
+
 // Skip asm for IOS simulator
 #if defined(OS_IOS) && defined(ARCH_CPU_X86_FAMILY)
 #define CHACHA20_WITH_ASM 0

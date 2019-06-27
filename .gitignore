@@ -14,3 +14,4 @@
 /tunsafe.unstripped
 /*.zip
 /*.dSYM
+/cmake-build-debug

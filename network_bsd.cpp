@@ -286,12 +286,13 @@ void TunsafeBackendBsdImpl::WriteTunPacket(Packet *packet) override {
 }
 
 // Called to initialize udp
+// 初始化UDP
 bool TunsafeBackendBsdImpl::Configure(int listen_port) override {
   int udp_fd = open_udp(listen_port);
   if (udp_fd < 0) { RERROR("Error opening udp"); return false; }
   fcntl(udp_fd, F_SETFD, FD_CLOEXEC);
-  fcntl(udp_fd, F_SETFL, O_NONBLOCK);
-  SetUdpFd(udp_fd);
+  fcntl(udp_fd, F_SETFL, O_NONBLOCK);//设置非阻塞
+  SetUdpFd(udp_fd);//放到epoll
   return true;
 }
 

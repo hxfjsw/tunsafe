@@ -137,11 +137,13 @@ bool WireguardProcessor::Start() {
   return ConfigureUdp() && ConfigureTun();
 }
 
+//创建UDP
 bool WireguardProcessor::ConfigureUdp() {
   assert(dev_.IsMainThread());
   return udp_->Configure(listen_port_);
 }
 
+//创建Tun
 bool WireguardProcessor::ConfigureTun() {
   assert(dev_.IsMainThread());
 
@@ -228,6 +230,7 @@ bool WireguardProcessor::ConfigureTun() {
     peer->ipv4_broadcast_addr_ = ipv4_broadcast_addr;
     if (peer->endpoint_.sin.sin_family != 0) {
       RINFO("Sending handshake...");
+      //发送握手包
       SendHandshakeInitiation(peer);
     }
   }

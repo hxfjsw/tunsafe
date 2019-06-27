@@ -718,6 +718,7 @@ void SigInt(int sig) {
         g_tunsafe_backend_bsd->HandleExit();
 }
 
+//主循环
 void TunsafeBackendBsd::RunLoop() {
     assert(!g_tunsafe_backend_bsd);
     assert(processor_);
@@ -822,26 +823,30 @@ public:
     bool is_connected_;
 };
 
-//linux真实的main日寇
+//linux真实的main函数
 int main(int argc, char **argv) {
     CommandLineOutput cmd = {0};
 
+    //初始化Cpu特性
     InitCpuFeatures();
 
+    //压力测试
     if (argc == 2 && strcmp(argv[1], "--benchmark") == 0) {
         Benchmark();
         return 0;
     }
 
+    //处理命令行参数
     int rv = HandleCommandLine(argc, argv, &cmd);
     if (!cmd.filename_to_load)
         return rv;
 
 #if defined(OS_MACOSX)
+    //macos下定时器要初始化一下
     InitOsxGetMilliseconds();
 #endif
 
-    SetThreadName("tunsafe-m");
+    SetThreadName("tunsafe-m");//设置线程名称
 
     MyProcessorDelegate my_procdel;
     TunsafeBackendBsd *backend = CreateTunsafeBackendBsd();
@@ -867,6 +872,7 @@ int main(int argc, char **argv) {
     }
 
     backend->RunLoop();
+    //
     backend->CleanupRoutes();
     delete backend;
 

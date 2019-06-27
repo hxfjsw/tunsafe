@@ -518,6 +518,7 @@ void WgPeer::SetPresharedKey(const uint8 preshared_key[WG_SYMMETRIC_KEY_LEN]) {
 }
 
 // run on the client
+// 握手包初始化
 void WgPeer::CreateMessageHandshakeInitiation(Packet *packet) {
   assert(dev_->IsMainThread());
 

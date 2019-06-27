@@ -370,19 +370,21 @@ static int HandleStopCommand(int argc, char **argv) {
 #endif  // defined(OS_POSIX)
 
 void ShowHelp() {
-  fprintf(stderr,
-    "Usage: " EXENAME " <cmd> [<args>]\n\n"
-#if defined(OS_POSIX)
+    fprintf(stderr,
+            "Usage: "
+    EXENAME
+    " <cmd> [<args>]\n\n"
+    #if defined(OS_POSIX)
     "       " EXENAME " filename.conf\n\n"
-#endif  // defined(OS_POSIX)
+    #endif  // defined(OS_POSIX)
     "Available subcommands:\n"
     "  show: Shows the configuration and status of the interfaces\n"
     "  set: Change the configuration or the peer list\n"
     "  start: Start TunSafe on an interface\n"
     "  stop: Stop TunSafe on an interface\n"
-#if defined(OS_WIN)
+    #if defined(OS_WIN)
     "  log: Display recent log entries\n"
-#endif  // defined(OS_WIN)
+    #endif  // defined(OS_WIN)
     "  genkey: Writes a new private key to stdout\n"
     "  genpsk: Writes a new preshared key to stdout\n"
     "  pubkey: Reads a private key from stdin and writes its public key to stdout\n"
@@ -390,342 +392,351 @@ void ShowHelp() {
 }
 
 
-
 static bool ParseHexKeyToBase64(const char *key, char base64key[WG_PUBLIC_KEY_LEN_BASE64 + 1]) {
-  uint8 keybuf[32];
-  if (!ParseHexString(key, keybuf, 32))
-    return false;
-  return base64_encode(keybuf, 32, base64key, WG_PUBLIC_KEY_LEN_BASE64 + 1, NULL) != NULL;
+    uint8 keybuf[32];
+    if (!ParseHexString(key, keybuf, 32))
+        return false;
+    return base64_encode(keybuf, 32, base64key, WG_PUBLIC_KEY_LEN_BASE64 + 1, NULL) != NULL;
 }
 
 static char *FormatTransferPart(char *buf, size_t bufsize, uint64 n) {
-  if (n < 1024)
-    snprintf(buf, bufsize, "%u " ANSI_FG_CYAN "B" ANSI_RESET, (unsigned)n);
-  else if (n < 1024 * 1024)
-    snprintf(buf, bufsize, "%.2f " ANSI_FG_CYAN "KiB" ANSI_RESET, (double)n * (1.0 / 1024));
-  else if (n < 1024 * 1024 * 1024)
-    snprintf(buf, bufsize, "%.2f " ANSI_FG_CYAN "MiB" ANSI_RESET, (double)n * (1.0 / 1024 / 1024));
-  else if (n < 1024ull * 1024 * 1024 * 1024)
-    snprintf(buf, bufsize, "%.2f " ANSI_FG_CYAN "GiB" ANSI_RESET, (double)n * (1.0 / 1024 / 1024 / 1024));
-  else
-    snprintf(buf, bufsize, "%.2f " ANSI_FG_CYAN "TiB" ANSI_RESET, (double)n * (1.0 / 1024 / 1024 / 1024 / 1024));
-  return buf;
+    if (n < 1024)
+        snprintf(buf, bufsize, "%u " ANSI_FG_CYAN "B" ANSI_RESET, (unsigned) n);
+    else if (n < 1024 * 1024)
+        snprintf(buf, bufsize, "%.2f " ANSI_FG_CYAN "KiB" ANSI_RESET, (double) n * (1.0 / 1024));
+    else if (n < 1024 * 1024 * 1024)
+        snprintf(buf, bufsize, "%.2f " ANSI_FG_CYAN "MiB" ANSI_RESET, (double) n * (1.0 / 1024 / 1024));
+    else if (n < 1024ull * 1024 * 1024 * 1024)
+        snprintf(buf, bufsize, "%.2f " ANSI_FG_CYAN "GiB" ANSI_RESET, (double) n * (1.0 / 1024 / 1024 / 1024));
+    else
+        snprintf(buf, bufsize, "%.2f " ANSI_FG_CYAN "TiB" ANSI_RESET, (double) n * (1.0 / 1024 / 1024 / 1024 / 1024));
+    return buf;
 }
 
 static size_t PrintTime(char *buf, size_t bufsize, uint64 n) {
-  size_t pos = 0;
-  uint64 years = n / (365 * 24 * 60 * 60);
-  uint32 n32 = n % (365 * 24 * 60 * 60);
-  if (years)
-    pos += snprintf(buf + pos, bufsize - pos, "%llu " ANSI_FG_CYAN "year%s" ANSI_RESET ", ", (unsigned long long)years, (years == 1) ? "" : "s");
-  uint32 days = n32 / (24 * 60 * 60);
-  n32 %= (24 * 60 * 60);
-  if (days)
-    pos += snprintf(buf + pos, bufsize - pos, "%u " ANSI_FG_CYAN "day%s" ANSI_RESET ", ", days, (days == 1) ? "" : "s");
-  uint32 hours = n32 / (60 * 60);
-  n32 %= (60 * 60);
-  if (hours)
-    pos += snprintf(buf + pos, bufsize - pos, "%u " ANSI_FG_CYAN "hour%s" ANSI_RESET ", ", hours, (hours == 1) ? "" : "s");
-  uint32 minutes = n32 / 60;
-  if (minutes)
-    pos += snprintf(buf + pos, bufsize - pos, "%u " ANSI_FG_CYAN "minute%s" ANSI_RESET ", ", minutes, (minutes == 1) ? "" : "s");
-  uint32 seconds = n32 % 60;
-  if (seconds)
-    pos += snprintf(buf + pos, bufsize - pos, "%u " ANSI_FG_CYAN "second%s" ANSI_RESET ", ", seconds, (seconds == 1) ? "" : "s");
-  if (pos)
-    buf[pos -= 2] = '\0';
-  return pos;
+    size_t pos = 0;
+    uint64 years = n / (365 * 24 * 60 * 60);
+    uint32 n32 = n % (365 * 24 * 60 * 60);
+    if (years)
+        pos += snprintf(buf + pos, bufsize - pos, "%llu " ANSI_FG_CYAN "year%s" ANSI_RESET ", ",
+                        (unsigned long long) years, (years == 1) ? "" : "s");
+    uint32 days = n32 / (24 * 60 * 60);
+    n32 %= (24 * 60 * 60);
+    if (days)
+        pos += snprintf(buf + pos, bufsize - pos, "%u " ANSI_FG_CYAN "day%s" ANSI_RESET ", ", days,
+                        (days == 1) ? "" : "s");
+    uint32 hours = n32 / (60 * 60);
+    n32 %= (60 * 60);
+    if (hours)
+        pos += snprintf(buf + pos, bufsize - pos, "%u " ANSI_FG_CYAN "hour%s" ANSI_RESET ", ", hours,
+                        (hours == 1) ? "" : "s");
+    uint32 minutes = n32 / 60;
+    if (minutes)
+        pos += snprintf(buf + pos, bufsize - pos, "%u " ANSI_FG_CYAN "minute%s" ANSI_RESET ", ", minutes,
+                        (minutes == 1) ? "" : "s");
+    uint32 seconds = n32 % 60;
+    if (seconds)
+        pos += snprintf(buf + pos, bufsize - pos, "%u " ANSI_FG_CYAN "second%s" ANSI_RESET ", ", seconds,
+                        (seconds == 1) ? "" : "s");
+    if (pos)
+        buf[pos -= 2] = '\0';
+    return pos;
 }
 
 static char *PrintHandshake(char *buf, size_t bufsize, uint64 secs) {
-  time_t now = time(NULL);
-  if (now == secs) {
-    snprintf(buf, bufsize, "Now");
-  } else if (now < (int64)secs) {
-    snprintf(buf, bufsize, ANSI_FG_RED "System clock going backwards" ANSI_RESET);
-  } else {
-    size_t pos = PrintTime(buf, bufsize - 4, now - secs);
-    memcpy(buf + pos, " ago", 5);
-  }
-  return buf;
+    time_t now = time(NULL);
+    if (now == secs) {
+        snprintf(buf, bufsize, "Now");
+    } else if (now < (int64) secs) {
+        snprintf(buf, bufsize, ANSI_FG_RED "System clock going backwards" ANSI_RESET);
+    } else {
+        size_t pos = PrintTime(buf, bufsize - 4, now - secs);
+        memcpy(buf + pos, " ago", 5);
+    }
+    return buf;
 }
 
 static void AppendIpToString(const char *value, std::string *result) {
-  if (!result->empty())
-    (*result) += ", ";
-  const char *slash = strchr(value, '/');
-  if (slash) {
-    result->append(value, slash - value);
-    result->append(ANSI_FG_CYAN "/" ANSI_RESET);
-    result->append(slash + 1);
-  } else {
-    result->append(value);
-  }
+    if (!result->empty())
+        (*result) += ", ";
+    const char *slash = strchr(value, '/');
+    if (slash) {
+        result->append(value, slash - value);
+        result->append(ANSI_FG_CYAN "/" ANSI_RESET);
+        result->append(slash + 1);
+    } else {
+        result->append(value);
+    }
 }
 
 static int ShowUserFriendlyForDevice(char *devname) {
-  std::string reply;
-  std::vector<std::pair<char*, char*>> kv;
-  std::string ips;
+    std::string reply;
+    std::vector <std::pair<char *, char *>> kv;
+    std::string ips;
 
-  if (!CommunicateWithService(devname, "get=1\n\n", &reply))
-    return 1;
+    if (!CommunicateWithService(devname, "get=1\n\n", &reply))
+        return 1;
 
-  if (!ParseConfigKeyValue(&reply[0], &kv)) {
-getout_fail:
-    fprintf(stderr, "Unable to parse response");
-    return 1;
-  }
-
-  size_t i = 0;
-  char base64key[WG_PUBLIC_KEY_LEN_BASE64 + 1];
-  char base64psk[WG_PUBLIC_KEY_LEN_BASE64 + 1];
-  int listen_port = 0;
-  base64key[0] = 0;
-
-  // Parse all interface level keys
-  for (; i < kv.size(); i++) {
-    char *key = kv[i].first, *value = kv[i].second;
-    if (strcmp(key, "private_key") == 0) {
-      uint8 binkey[32];
-      if (!ParseHexString(value, binkey, sizeof(binkey)))
-        goto getout_fail;
-      if (!IsOnlyZeros(binkey, 32)) {
-        curve25519_donna(binkey, binkey, kCurve25519Basepoint);
-        base64_encode(binkey, sizeof(binkey), base64key, sizeof(base64key), NULL);
-      }
-    } else if (strcmp(key, "address") == 0) {
-      AppendIpToString(value, &ips);
-    } else if (strcmp(key, "listen_port") == 0) {
-      listen_port = atoi(value);
-    } else if (strcmp(key, "public_key") == 0) {
-      break;
+    if (!ParseConfigKeyValue(&reply[0], &kv)) {
+        getout_fail:
+        fprintf(stderr, "Unable to parse response");
+        return 1;
     }
-  }
 
-  const char *interfacename = (devname[0] == '{') ? GetInterfaceNameFromGuid(devname) : devname;
+    size_t i = 0;
+    char base64key[WG_PUBLIC_KEY_LEN_BASE64 + 1];
+    char base64psk[WG_PUBLIC_KEY_LEN_BASE64 + 1];
+    int listen_port = 0;
+    base64key[0] = 0;
 
-  ansi_printf(ANSI_RESET ANSI_FG_GREEN ANSI_BOLD "interface" ANSI_RESET ": " ANSI_FG_GREEN "%s" ANSI_RESET "\n",
-         interfacename);
-  if (base64key[0]) {
-    ansi_printf("  " ANSI_BOLD "public key" ANSI_RESET ": %s\n"
-           "  " ANSI_BOLD "private key" ANSI_RESET ": (hidden)\n", base64key);
-  }
-  if (listen_port)
-    ansi_printf("  " ANSI_BOLD "listening port" ANSI_RESET ": %d\n", listen_port);
-  if (ips.size())
-    ansi_printf("  " ANSI_BOLD "address" ANSI_RESET ": %s\n", ips.c_str());
-
-  const char *endpoint = NULL;
-  uint64 rx_bytes, tx_bytes, last_handshake_time_sec;
-  int persistent_keepalive;
-  char text[256];
-  bool clear_state = true;
-
-  // Parse peer level keys
-  for (; i < kv.size(); i++) {
-    char *key = kv[i].first, *value = kv[i].second;
-
-    if (clear_state) {
-      base64key[0] = base64psk[0] = 0;
-      endpoint = NULL;
-      ips.clear();
-      persistent_keepalive = 0;
-      last_handshake_time_sec = tx_bytes = rx_bytes = 0;
-      clear_state = false;
+    // Parse all interface level keys
+    for (; i < kv.size(); i++) {
+        char *key = kv[i].first, *value = kv[i].second;
+        if (strcmp(key, "private_key") == 0) {
+            uint8 binkey[32];
+            if (!ParseHexString(value, binkey, sizeof(binkey)))
+                goto getout_fail;
+            if (!IsOnlyZeros(binkey, 32)) {
+                curve25519_donna(binkey, binkey, kCurve25519Basepoint);
+                base64_encode(binkey, sizeof(binkey), base64key, sizeof(base64key), NULL);
+            }
+        } else if (strcmp(key, "address") == 0) {
+            AppendIpToString(value, &ips);
+        } else if (strcmp(key, "listen_port") == 0) {
+            listen_port = atoi(value);
+        } else if (strcmp(key, "public_key") == 0) {
+            break;
+        }
     }
-    if (strcmp(key, "public_key") == 0) {
-      if (!ParseHexKeyToBase64(value, base64key))
-        goto getout_fail;
-    } else if (strcmp(key, "preshared_key") == 0) {
-      if (!ParseHexKeyToBase64(value, base64psk))
-        goto getout_fail;
-    } else if (strcmp(key, "tx_bytes") == 0) {
-      tx_bytes = strtoull(value, NULL, 0);
-    } else if (strcmp(key, "rx_bytes") == 0) {
-      rx_bytes = strtoull(value, NULL, 0);
-    } else if (strcmp(key, "allowed_ip") == 0) {
-      AppendIpToString(value, &ips);
-    } else if (strcmp(key, "persistent_keepalive_interval") == 0) {
-      persistent_keepalive = atoi(value);
-    } else if (strcmp(key, "endpoint") == 0) {
-      endpoint = value;
-    } else if (strcmp(key, "last_handshake_time_sec") == 0) {
-      last_handshake_time_sec = strtoull(value, NULL, 0);
+
+    const char *interfacename = (devname[0] == '{') ? GetInterfaceNameFromGuid(devname) : devname;
+
+    ansi_printf(ANSI_RESET ANSI_FG_GREEN ANSI_BOLD "interface" ANSI_RESET ": " ANSI_FG_GREEN "%s" ANSI_RESET "\n",
+                interfacename);
+    if (base64key[0]) {
+        ansi_printf("  " ANSI_BOLD "public key" ANSI_RESET ": %s\n"
+                    "  " ANSI_BOLD "private key" ANSI_RESET ": (hidden)\n", base64key);
     }
-    if (i == kv.size() - 1 || strcmp(kv[i + 1].first, "public_key") == 0) {
-      if (!base64key[0])
-        goto getout_fail;
-      ansi_printf("\n" ANSI_FG_YELLOW ANSI_BOLD "peer" ANSI_RESET ": " ANSI_FG_YELLOW "%s" ANSI_RESET "\n", base64key);
-      if (base64psk[0])
-        ansi_printf("  " ANSI_BOLD "preshared key" ANSI_RESET ": (hidden)\n");
-      if (endpoint)
-        ansi_printf("  " ANSI_BOLD "endpoint" ANSI_RESET ": %s\n", endpoint);
-      ansi_printf("  " ANSI_BOLD "allowed ips" ANSI_RESET ": %s\n", ips.size() ? ips.c_str() : "(none)");
-      if (last_handshake_time_sec)
-        ansi_printf("  " ANSI_BOLD "latest handshake" ANSI_RESET ": %s\n", PrintHandshake(text, sizeof(text), last_handshake_time_sec));
-      if (tx_bytes | rx_bytes) {
-        ansi_printf("  " ANSI_BOLD "transfer" ANSI_RESET ": %s received, ", FormatTransferPart(text, sizeof(text), rx_bytes));
-        ansi_printf("%s sent\n", FormatTransferPart(text, sizeof(text), tx_bytes));
-      }
-      if (persistent_keepalive) {
-        PrintTime(text, sizeof(text), persistent_keepalive);
-        ansi_printf("  " ANSI_BOLD "persistent keepalive" ANSI_RESET ": every %s\n", text);
-      }
-      clear_state = true;
+    if (listen_port)
+        ansi_printf("  " ANSI_BOLD "listening port" ANSI_RESET ": %d\n", listen_port);
+    if (ips.size())
+        ansi_printf("  " ANSI_BOLD "address" ANSI_RESET ": %s\n", ips.c_str());
+
+    const char *endpoint = NULL;
+    uint64 rx_bytes, tx_bytes, last_handshake_time_sec;
+    int persistent_keepalive;
+    char text[256];
+    bool clear_state = true;
+
+    // Parse peer level keys
+    for (; i < kv.size(); i++) {
+        char *key = kv[i].first, *value = kv[i].second;
+
+        if (clear_state) {
+            base64key[0] = base64psk[0] = 0;
+            endpoint = NULL;
+            ips.clear();
+            persistent_keepalive = 0;
+            last_handshake_time_sec = tx_bytes = rx_bytes = 0;
+            clear_state = false;
+        }
+        if (strcmp(key, "public_key") == 0) {
+            if (!ParseHexKeyToBase64(value, base64key))
+                goto getout_fail;
+        } else if (strcmp(key, "preshared_key") == 0) {
+            if (!ParseHexKeyToBase64(value, base64psk))
+                goto getout_fail;
+        } else if (strcmp(key, "tx_bytes") == 0) {
+            tx_bytes = strtoull(value, NULL, 0);
+        } else if (strcmp(key, "rx_bytes") == 0) {
+            rx_bytes = strtoull(value, NULL, 0);
+        } else if (strcmp(key, "allowed_ip") == 0) {
+            AppendIpToString(value, &ips);
+        } else if (strcmp(key, "persistent_keepalive_interval") == 0) {
+            persistent_keepalive = atoi(value);
+        } else if (strcmp(key, "endpoint") == 0) {
+            endpoint = value;
+        } else if (strcmp(key, "last_handshake_time_sec") == 0) {
+            last_handshake_time_sec = strtoull(value, NULL, 0);
+        }
+        if (i == kv.size() - 1 || strcmp(kv[i + 1].first, "public_key") == 0) {
+            if (!base64key[0])
+                goto getout_fail;
+            ansi_printf("\n" ANSI_FG_YELLOW ANSI_BOLD "peer" ANSI_RESET ": " ANSI_FG_YELLOW "%s" ANSI_RESET "\n",
+                        base64key);
+            if (base64psk[0])
+                ansi_printf("  " ANSI_BOLD "preshared key" ANSI_RESET ": (hidden)\n");
+            if (endpoint)
+                ansi_printf("  " ANSI_BOLD "endpoint" ANSI_RESET ": %s\n", endpoint);
+            ansi_printf("  " ANSI_BOLD "allowed ips" ANSI_RESET ": %s\n", ips.size() ? ips.c_str() : "(none)");
+            if (last_handshake_time_sec)
+                ansi_printf("  " ANSI_BOLD "latest handshake" ANSI_RESET ": %s\n",
+                            PrintHandshake(text, sizeof(text), last_handshake_time_sec));
+            if (tx_bytes | rx_bytes) {
+                ansi_printf("  " ANSI_BOLD "transfer" ANSI_RESET ": %s received, ",
+                            FormatTransferPart(text, sizeof(text), rx_bytes));
+                ansi_printf("%s sent\n", FormatTransferPart(text, sizeof(text), tx_bytes));
+            }
+            if (persistent_keepalive) {
+                PrintTime(text, sizeof(text), persistent_keepalive);
+                ansi_printf("  " ANSI_BOLD "persistent keepalive" ANSI_RESET ": every %s\n", text);
+            }
+            clear_state = true;
+        }
     }
-  }
-  return 0;
+    return 0;
 }
 
 static int HandleShowCommand(int argc, char **argv) {
-  if (argc != 0 && strcmp(argv[0], "--help") == 0) {
-    fprintf(stderr, "Usage: ts show { <interface> | all | interfaces }\n");
+    if (argc != 0 && strcmp(argv[0], "--help") == 0) {
+        fprintf(stderr, "Usage: ts show { <interface> | all | interfaces }\n");
+        return 0;
+    }
+
+    std::vector<char *> interfaces;
+    std::string interfaces_str;
+
+    if (argc == 0 || strcmp(argv[0], "all") == 0) {
+        if (!GetInterfaceList(&interfaces_str))
+            return 1;
+        SplitString(&interfaces_str[0], '\n', &interfaces);
+
+        bool want_newline = false;
+        for (char *interfac : interfaces) {
+            if (want_newline)
+                ansi_printf("\n");
+            want_newline = true;
+            if (ShowUserFriendlyForDevice(interfac))
+                return 1;
+        }
+    } else if (strcmp(argv[0], "interfaces") == 0) {
+        if (!GetInterfaceList(&interfaces_str))
+            return 1;
+        SplitString(&interfaces_str[0], '\n', &interfaces);
+
+        for (char *interfac : interfaces) {
+            const char *name = GetInterfaceNameFromGuid(interfac);
+            if (name)
+                ansi_printf("%s\n", name);
+        }
+    } else {
+        return ShowUserFriendlyForDevice(argv[0]);
+    }
     return 0;
-  }
-
-  std::vector<char*> interfaces;
-  std::string interfaces_str;
-
-  if (argc == 0 || strcmp(argv[0], "all") == 0) {
-    if (!GetInterfaceList(&interfaces_str))
-      return 1;
-    SplitString(&interfaces_str[0], '\n', &interfaces);
-
-    bool want_newline = false;
-    for (char *interfac : interfaces) {
-      if (want_newline)
-        ansi_printf("\n");
-      want_newline = true;
-      if (ShowUserFriendlyForDevice(interfac))
-        return 1;
-    }
-  } else if (strcmp(argv[0], "interfaces") == 0) {
-    if (!GetInterfaceList(&interfaces_str))
-      return 1;
-    SplitString(&interfaces_str[0], '\n', &interfaces);
-
-    for (char *interfac : interfaces) {
-      const char *name = GetInterfaceNameFromGuid(interfac);
-      if (name)
-        ansi_printf("%s\n", name);
-    }
-  } else {
-    return ShowUserFriendlyForDevice(argv[0]);
-  }
-  return 0;
 }
 
 static void AppendCommand(std::string *result, const char *tag, const char *value) {
-  result->append(tag);
-  result->append("=");
-  result->append(value);
-  result->append("\n");
+    result->append(tag);
+    result->append("=");
+    result->append(value);
+    result->append("\n");
 }
 
 static bool ConvertBase64KeyToHex(const char *s, char key[65]) {
-  uint8 tmp[32];
-  size_t size = 32;
-  if (!base64_decode((uint8*)s, strlen(s), tmp, &size) || size != 32)
-    return false;
-  PrintHexString(tmp, 32, key);
-  return true;
+    uint8 tmp[32];
+    size_t size = 32;
+    if (!base64_decode((uint8 *) s, strlen(s), tmp, &size) || size != 32)
+        return false;
+    PrintHexString(tmp, 32, key);
+    return true;
 }
 
 static int HandleSetCommand(int argc, char **argv) {
-  std::string command, reply;
-  std::vector<char*> ss;
-  char hexkey[65];
+    std::string command, reply;
+    std::vector<char *> ss;
+    char hexkey[65];
 
-  if (argc == 0) {
-    fprintf(stderr, "Usage: " EXENAME " set <interface> [address <address>] [listen-port <port>] [private-key <file path>] "
-            "[peer <base64 public key> [remove] [preshared-key <file path>] [endpoint <ip>:<port>] "
-            "[persistent-keepalive <interval seconds>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]] ]");
-    return 1;
-  }
-  char **argv_end = argv + argc;
-  const char *interfc = *argv++;
-  
-  command = "set=1\n";
-
-  bool in_interface_section = true;
-  bool in_peer_section = false;
-  bool did_clear_allowed_ips = false;
-
-  while (argv != argv_end) {
-    const char *key = *argv++;
-    
-    if (argv != argv_end) {
-      if (in_interface_section) {
-        if (strcmp(key, "listen-port") == 0) {
-          AppendCommand(&command, "listen_port", *argv++);
-          continue;
-        } else if (strcmp(key, "address") == 0) {
-          AppendCommand(&command, "address", *argv++);
-          continue;
-        } else if (strcmp(key, "private-key") == 0) {
-          if (!ConvertBase64KeyToHex(*argv++, hexkey))
-            goto invalid_key_format;
-          AppendCommand(&command, "private_key", hexkey);
-          continue;
-        }
-      }
-      if (strcmp(key, "peer") == 0) {
-        in_interface_section = false;
-        in_peer_section = true;
-        did_clear_allowed_ips = false;
-        if (!ConvertBase64KeyToHex(*argv++, hexkey))
-          goto invalid_key_format;
-        AppendCommand(&command, "public_key", hexkey);
-        
-        continue;
-      }
-      if (in_peer_section) {
-        if (strcmp(key, "preshared-key") == 0) {
-          if (!ConvertBase64KeyToHex(*argv++, hexkey))
-            goto invalid_key_format;
-          AppendCommand(&command, "preshared_key", hexkey);
-          continue;
-        } else if (strcmp(key, "endpoint") == 0) {
-          AppendCommand(&command, "endpoint", *argv++);
-          continue;
-        } else if (strcmp(key, "persistent-keepalive") == 0) {
-          AppendCommand(&command, "persistent_keepalive_interval", *argv++);
-          continue;
-        } else if (strcmp(key, "allowed-ips") == 0) {
-          if (!did_clear_allowed_ips) {
-            AppendCommand(&command, "replace_allowed_ips", "true");
-            did_clear_allowed_ips = true;
-          }
-          SplitString(*argv++, ',', &ss);
-          for (char *x : ss)
-            AppendCommand(&command, "allowed_ip", x);
-          continue;
-        }
-      }
+    if (argc == 0) {
+        fprintf(stderr, "Usage: "
+        EXENAME
+        " set <interface> [address <address>] [listen-port <port>] [private-key <file path>] "
+        "[peer <base64 public key> [remove] [preshared-key <file path>] [endpoint <ip>:<port>] "
+        "[persistent-keepalive <interval seconds>] [allowed-ips <ip1>/<cidr1>[,<ip2>/<cidr2>]] ]");
+        return 1;
     }
-    if (in_peer_section) {
-      if (strcmp(key, "remove") == 0) {
-        in_peer_section = false;
-        AppendCommand(&command, "remove", "true");
-        continue;
-      }
+    char **argv_end = argv + argc;
+    const char *interfc = *argv++;
+
+    command = "set=1\n";
+
+    bool in_interface_section = true;
+    bool in_peer_section = false;
+    bool did_clear_allowed_ips = false;
+
+    while (argv != argv_end) {
+        const char *key = *argv++;
+
+        if (argv != argv_end) {
+            if (in_interface_section) {
+                if (strcmp(key, "listen-port") == 0) {
+                    AppendCommand(&command, "listen_port", *argv++);
+                    continue;
+                } else if (strcmp(key, "address") == 0) {
+                    AppendCommand(&command, "address", *argv++);
+                    continue;
+                } else if (strcmp(key, "private-key") == 0) {
+                    if (!ConvertBase64KeyToHex(*argv++, hexkey))
+                        goto invalid_key_format;
+                    AppendCommand(&command, "private_key", hexkey);
+                    continue;
+                }
+            }
+            if (strcmp(key, "peer") == 0) {
+                in_interface_section = false;
+                in_peer_section = true;
+                did_clear_allowed_ips = false;
+                if (!ConvertBase64KeyToHex(*argv++, hexkey))
+                    goto invalid_key_format;
+                AppendCommand(&command, "public_key", hexkey);
+
+                continue;
+            }
+            if (in_peer_section) {
+                if (strcmp(key, "preshared-key") == 0) {
+                    if (!ConvertBase64KeyToHex(*argv++, hexkey))
+                        goto invalid_key_format;
+                    AppendCommand(&command, "preshared_key", hexkey);
+                    continue;
+                } else if (strcmp(key, "endpoint") == 0) {
+                    AppendCommand(&command, "endpoint", *argv++);
+                    continue;
+                } else if (strcmp(key, "persistent-keepalive") == 0) {
+                    AppendCommand(&command, "persistent_keepalive_interval", *argv++);
+                    continue;
+                } else if (strcmp(key, "allowed-ips") == 0) {
+                    if (!did_clear_allowed_ips) {
+                        AppendCommand(&command, "replace_allowed_ips", "true");
+                        did_clear_allowed_ips = true;
+                    }
+                    SplitString(*argv++, ',', &ss);
+                    for (char *x : ss)
+                        AppendCommand(&command, "allowed_ip", x);
+                    continue;
+                }
+            }
+        }
+        if (in_peer_section) {
+            if (strcmp(key, "remove") == 0) {
+                in_peer_section = false;
+                AppendCommand(&command, "remove", "true");
+                continue;
+            }
+        }
+
+        fprintf(stderr, "Invalid argument: %s\n", key);
+        return 1;
+
+        invalid_key_format:
+        fprintf(stderr, "Key is not in the correct format: '%s'\n", argv[-1]);
+        return 1;
     }
 
-    fprintf(stderr, "Invalid argument: %s\n", key);
-    return 1;
+    command.append("\n");
 
-invalid_key_format:
-    fprintf(stderr, "Key is not in the correct format: '%s'\n", argv[-1]);
-    return 1;
-  }
+    if (!CommunicateWithService(interfc, command, &reply))
+        return 1;
 
-  command.append("\n");
-
-  if (!CommunicateWithService(interfc, command, &reply))
-    return 1;
-
-  return 0;
+    return 0;
 }
 
 #if defined(OS_WIN)
@@ -788,108 +799,119 @@ static int HandleStopCommand(int argc, char **argv) {
 
 
 // Returns -1 on invalid subcommand
+//处理命令行参数
+//-1表示无法处理的子命令
 int HandleCommandLine(int argc, char **argv, CommandLineOutput *output) {
-  uint8 key[32];
-  char base64buf[WG_PUBLIC_KEY_LEN_BASE64 + 1];
+    uint8 key[32];
+    char base64buf[WG_PUBLIC_KEY_LEN_BASE64 + 1];
 
-  if (argc == 1) {
-    ShowHelp();
-    return 1;
-  }
+    if (argc == 1) {
+        ShowHelp();
+        return 1;
+    }
 
-  const char *subcommand = argv[1];
-  argv += 2;
-  argc -= 2;
+    const char *subcommand = argv[1];
+    argv += 2;
+    argc -= 2;
 
-  if (!strcmp(subcommand, "show")) {
-    return HandleShowCommand(argc, argv);
+    if (!strcmp(subcommand, "show")) {                  //现实当前状态
+        return HandleShowCommand(argc, argv);
 
-  } else if (!strcmp(subcommand, "set")) {
-    return HandleSetCommand(argc, argv);
+    } else if (!strcmp(subcommand, "set")) {            //对某个peer进行配置
+        return HandleSetCommand(argc, argv);
 
 #if defined(OS_WIN)
-  } else if (!strcmp(subcommand, "log")) {
-    if (argc != 0) {
-      fprintf(stderr, "Usage: " EXENAME " log\n");
-      return 1;
-    }
-    return HandleLogCommand();
+        } else if (!strcmp(subcommand, "log")) {
+          if (argc != 0) {
+            fprintf(stderr, "Usage: " EXENAME " log\n");
+            return 1;
+          }
+          return HandleLogCommand();
 
-  } else if (!strcmp(subcommand, "start")) {
-    return HandleStartCommand(argc, argv);
+        } else if (!strcmp(subcommand, "start")) {      //启动某个接口
+          return HandleStartCommand(argc, argv);
 
 #else
-  } else if (!strcmp(subcommand, "start") && output) {
-    if (argc != 0 && !strcmp(argv[0], "--help")) {
-start_usage:
-      fprintf(stderr, "Usage: " EXENAME " start [-d/--daemon] [-n <interface-name>] [<filename>]\n");
-      return 0;
-    }
-    for (; argc; argc--, argv++) {
-      char *arg = argv[0];
-      if (strcmp(arg, "-d") == 0 || strcmp(arg, "--daemon") == 0) {
-        output->daemon = true;
-        continue;
-      }
-      if (strcmp(arg, "-n") == 0) {
-        if (argc < 2) goto start_usage;
-        output->interface_name = argv[1];
-        argc--,argv++;
-        continue;
-      }
-      break;
-    }
-    if (argc > 1) goto start_usage;
-    output->filename_to_load = (argc == 0) ? "" : argv[0];
-    return 0;
+    } else if (!strcmp(subcommand, "start") && output) {
+        if (argc != 0 && !strcmp(argv[0], "--help")) {
+            start_usage:
+            fprintf(stderr, "Usage: "
+            EXENAME
+            " start [-d/--daemon] [-n <interface-name>] [<filename>]\n");
+            return 0;
+        }
+        for (; argc; argc--, argv++) {
+            char *arg = argv[0];
+            if (strcmp(arg, "-d") == 0 || strcmp(arg, "--daemon") == 0) {
+                output->daemon = true;
+                continue;
+            }
+            if (strcmp(arg, "-n") == 0) {
+                if (argc < 2) goto start_usage;
+                output->interface_name = argv[1];
+                argc--, argv++;
+                continue;
+            }
+            break;
+        }
+        if (argc > 1) goto start_usage;
+        output->filename_to_load = (argc == 0) ? "" : argv[0];
+        return 0;
 #endif  // defined(OS_WIN)
-  } else if (!strcmp(subcommand, "stop")) {
-    return HandleStopCommand(argc, argv);
-  } else if(!strcmp(subcommand, "genkey")) {
-    if (argc != 0) {
-      fprintf(stderr, "Usage: " EXENAME " genkey\n");
-      return 1;
-    }
-    OsGetRandomBytes(key, 32);
-    curve25519_normalize(key);
-    ansi_printf("%s\n", base64_encode(key, 32, base64buf, sizeof(base64buf), NULL));
+    } else if (!strcmp(subcommand, "stop")) {
+        return HandleStopCommand(argc, argv);
+    } else if (!strcmp(subcommand, "genkey")) {     //创建一个私有密钥
+        if (argc != 0) {
+            fprintf(stderr, "Usage: "
+            EXENAME
+            " genkey\n");
+            return 1;
+        }
+        OsGetRandomBytes(key, 32);
+        curve25519_normalize(key);
+        ansi_printf("%s\n", base64_encode(key, 32, base64buf, sizeof(base64buf), NULL));
 
-  } else if (!strcmp(subcommand, "genpsk")) {
-    if (argc != 0) {
-      fprintf(stderr, "Usage: " EXENAME " genpsk\n");
-      return 1;
-    }
-    OsGetRandomBytes(key, 32);
-    ansi_printf("%s\n", base64_encode(key, 32, base64buf, sizeof(base64buf), NULL));
-  } else if (!strcmp(subcommand, "pubkey")) {
-    char base64[WG_PUBLIC_KEY_LEN_BASE64 + 2];
-    size_t n = fread(base64, 1, sizeof(base64), stdin);
-    if (n < sizeof(base64) - 2 || n >= sizeof(base64) || 
-        (n == sizeof(base64) - 1 && (base64[WG_PUBLIC_KEY_LEN_BASE64] != ' ' && base64[WG_PUBLIC_KEY_LEN_BASE64] != '\n'))) {
-      fprintf(stderr, EXENAME ": Incorrect key format\n");
-      return 1;
-    }
-    size_t size = 32;
-    if (!base64_decode((uint8*)base64, n, key, &size) || size != 32) {
-      fprintf(stderr, EXENAME ": Incorrect key format\n");
-      return 1;
-    }
-    curve25519_donna(key, key, kCurve25519Basepoint);
-    ansi_printf("%s\n", base64_encode(key, 32, base64buf, sizeof(base64buf), NULL));
-  } else if (!strcmp(subcommand, "--help")) {
-    ShowHelp();
-  } else if (!strcmp(subcommand, "--version")) {
-    ansi_printf("%s\n", TUNSAFE_VERSION_STRING);
-  } else {
-    if (argc == 0) {
-      if (output)
-        output->filename_to_load = subcommand;
+    } else if (!strcmp(subcommand, "genpsk")) {     //创建预共享密钥
+        if (argc != 0) {
+            fprintf(stderr, "Usage: "
+            EXENAME
+            " genpsk\n");
+            return 1;
+        }
+        OsGetRandomBytes(key, 32);
+        ansi_printf("%s\n", base64_encode(key, 32, base64buf, sizeof(base64buf), NULL));
+    } else if (!strcmp(subcommand, "pubkey")) {     //根据私匙创建共匙
+        char base64[WG_PUBLIC_KEY_LEN_BASE64 + 2];
+        size_t n = fread(base64, 1, sizeof(base64), stdin);
+        if (n < sizeof(base64) - 2 || n >= sizeof(base64) ||
+            (n == sizeof(base64) - 1 &&
+             (base64[WG_PUBLIC_KEY_LEN_BASE64] != ' ' && base64[WG_PUBLIC_KEY_LEN_BASE64] != '\n'))) {
+            fprintf(stderr, EXENAME
+            ": Incorrect key format\n");
+            return 1;
+        }
+        size_t size = 32;
+        if (!base64_decode((uint8 *) base64, n, key, &size) || size != 32) {
+            fprintf(stderr, EXENAME
+            ": Incorrect key format\n");
+            return 1;
+        }
+        curve25519_donna(key, key, kCurve25519Basepoint);
+        ansi_printf("%s\n", base64_encode(key, 32, base64buf, sizeof(base64buf), NULL));
+    } else if (!strcmp(subcommand, "--help")) {
+        ShowHelp();
+    } else if (!strcmp(subcommand, "--version")) {
+        ansi_printf("%s\n", TUNSAFE_VERSION_STRING);
     } else {
-      ShowHelp();
+        if (argc == 0) {
+            if (output)
+                output->filename_to_load = subcommand;
+        } else {
+            ShowHelp();
+        }
+        return -1;
     }
-    return -1;
-  }
-  return 0;
+    return 0;
 }
 
 #if defined(OS_WIN)
