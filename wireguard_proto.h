@@ -128,9 +128,9 @@ STATIC_ASSERT(sizeof(MessageMacs) == 32, MessageMacs_wrong_size);
 
 //定一个握手包的数据格式
 struct MessageHandshakeInitiation {
-  uint32 type;                                              //握手类型
-  uint32 sender_key_id;                                     //
-  uint8 ephemeral[WG_PUBLIC_KEY_LEN];                       //初始化向量
+  uint32 type;                                              //固定为1
+  uint32 sender_key_id;                                     //是一个随机数,但在hash table里指向了一个peer
+  uint8 ephemeral[WG_PUBLIC_KEY_LEN];                       //gon
   uint8 static_enc[WG_PUBLIC_KEY_LEN + WG_MAC_LEN];         //
   uint8 timestamp_enc[WG_TIMESTAMP_LEN + WG_MAC_LEN];       //时间戳
   MessageMacs mac;                                          //消息的真实mac地址
@@ -147,23 +147,25 @@ STATIC_ASSERT(sizeof(MessageHandshakeInitiation) == 148, MessageHandshakeInitiat
 
 //握手包回应数据格式
 struct MessageHandshakeResponse {
-  uint32 type;
-  uint32 sender_key_id;
-  uint32 receiver_key_id;
-  uint8 ephemeral[WG_PUBLIC_KEY_LEN];
-  uint8 empty_enc[WG_MAC_LEN];
-  MessageMacs mac;
+  uint32 type;                              //固定为2
+  uint32 sender_key_id;                     //是一个随机数,但在hash table里指向了一个peer
+  uint32 receiver_key_id;                   //是一个随机数,但在hash table里指向了一个peer
+  uint8 ephemeral[WG_PUBLIC_KEY_LEN];       //
+  uint8 empty_enc[WG_MAC_LEN];              //
+  MessageMacs mac;                          //
 };
 STATIC_ASSERT(sizeof(MessageHandshakeResponse) == 92, MessageHandshakeResponse_wrong_size);
 
+//第三次握手
 struct MessageHandshakeCookie {
-  uint32 type;
+  uint32 type;                              //固定为3
   uint32 receiver_key_id;
   uint8 nonce[WG_COOKIE_NONCE_LEN];
   uint8 cookie_enc[WG_COOKIE_LEN + WG_MAC_LEN];
 };
 STATIC_ASSERT(sizeof(MessageHandshakeCookie) == 64, MessageHandshakeCookie_wrong_size);
 
+//平常的数据包
 struct MessageData {
   uint32 type;
   uint32 receiver_id;
@@ -311,6 +313,7 @@ struct WgPublicKeyHasher {
   size_t operator()(const WgPublicKey&a) const;
 };
 
+
 class WgDevice {
   friend class WgPeer;
   friend class WireguardProcessor;
@@ -318,6 +321,8 @@ class WgDevice {
 public:
 
   // Can be used to customize the behavior of WgDevice
+  //用于自定义虚拟网卡的行为
+  //macos，linux，windows都有不同的虚拟网卡
   class Delegate {
   public:
     // This is called from the main thread whenever a public key was not found in the WgDevice,
@@ -451,6 +456,7 @@ private:
 };
 
 // State for peer
+//一个peer的状态
 class WgPeer {
   friend class WgDevice;
   friend class WireguardProcessor;
@@ -544,6 +550,7 @@ private:
 
   // The broadcast address of the IPv4 network, used to block broadcast traffic
   // from being sent out over the VPN link.
+  //ipv4广播地址
   uint32 ipv4_broadcast_addr_;
 
   // Whether the tunsafe specific handshake extensions are supported
@@ -655,11 +662,13 @@ private:
 
 struct AesGcm128StaticContext;
 
+//密钥对
 struct WgKeypair {
   WgPeer *peer;
 
   // If the key has an addr entry mapping,
   // then this points at it.
+
   WgAddrEntry *addr_entry;
   // The slot in the addr entry where the key is registered.
   uint8 addr_entry_slot;
