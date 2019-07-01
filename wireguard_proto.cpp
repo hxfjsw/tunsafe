@@ -1125,6 +1125,7 @@ void WgPeer::OnHandshakeAuthComplete() {
   WgSetTimer(TIMER_PERSISTENT_KEEPALIVE);
 }
 
+//加密协议包
 static const char * const kCipherSuites[] = {
   "chacha20-poly1305",
   "aes128-gcm",

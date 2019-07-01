@@ -158,18 +158,18 @@ STATIC_ASSERT(sizeof(MessageHandshakeResponse) == 92, MessageHandshakeResponse_w
 
 //第三次握手
 struct MessageHandshakeCookie {
-  uint32 type;                              //固定为3
-  uint32 receiver_key_id;
-  uint8 nonce[WG_COOKIE_NONCE_LEN];
-  uint8 cookie_enc[WG_COOKIE_LEN + WG_MAC_LEN];
+  uint32 type;                                  //固定为3
+  uint32 receiver_key_id;                       //
+  uint8 nonce[WG_COOKIE_NONCE_LEN];             //
+  uint8 cookie_enc[WG_COOKIE_LEN + WG_MAC_LEN]; //
 };
 STATIC_ASSERT(sizeof(MessageHandshakeCookie) == 64, MessageHandshakeCookie_wrong_size);
 
 //平常的数据包
 struct MessageData {
-  uint32 type;
-  uint32 receiver_id;
-  uint64 counter;
+  uint32 type;                                  //
+  uint32 receiver_id;                           //
+  uint64 counter;                               //
 };
 STATIC_ASSERT(sizeof(MessageData) == 16, MessageData_wrong_size);
 
@@ -196,7 +196,7 @@ enum {
 };
 
 enum {
-  WG_FEATURES_COUNT = 6,
+  WG_FEATURES_COUNT = 6,              //最大失败次数             
   WG_FEATURE_ID_SHORT_HEADER = 0,    // Supports short headers
   WG_FEATURE_ID_SHORT_MAC = 1,       // Supports 8-byte MAC
   WG_FEATURE_ID_IPZIP = 2,           // Using ipzip
@@ -301,6 +301,7 @@ struct ScramblerSiphashKeys {
   uint64 keys[4];
 };
 
+//公钥
 union WgPublicKey {
   uint8 bytes[WG_PUBLIC_KEY_LEN];
   uint64 u64[WG_PUBLIC_KEY_LEN / 8];
@@ -309,13 +310,14 @@ union WgPublicKey {
   }
 };
 
+//
 struct WgPublicKeyHasher {
   size_t operator()(const WgPublicKey&a) const;
 };
 
-
+//虚拟网卡
 class WgDevice {
-  friend class WgPeer;
+  friend class WgPeer; 
   friend class WireguardProcessor;
   friend class WgConfig;
 public:
@@ -338,9 +340,11 @@ public:
   void SetPrivateKey(const uint8 private_key[WG_PUBLIC_KEY_LEN]);
 
   // Create a new peer
+  //添加一个新peer
   WgPeer *AddPeer();
 
   // Remove all peers
+  //删除所有Peer
   void RemoveAllPeers();
 
   // Setup header obfuscation
@@ -720,8 +724,10 @@ struct WgKeypair {
   // Counter value for chacha20 for outgoing packets
   uint64 send_ctr;
   // The key used for chacha20 encryption
+  //用于chacha20加密
   uint8 send_key[WG_SYMMETRIC_KEY_LEN];
   // The key used for chacha20 decryption
+  //用于chacha20解密
   uint8 recv_key[WG_SYMMETRIC_KEY_LEN];
 
   // Used when less than 16-byte mac is enabled to hash the hmac into 64 bits.

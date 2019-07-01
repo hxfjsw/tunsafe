@@ -43,7 +43,7 @@ WireguardProcessor::WireguardProcessor(UdpInterface *udp, TunInterface *tun, Pro
 
 WireguardProcessor::~WireguardProcessor() {
 }
-
+//设置一个监听端口
 void WireguardProcessor::SetListenPort(int listen_port) {
   if (listen_port_ != listen_port) {
     listen_port_ = listen_port;
@@ -58,6 +58,7 @@ void WireguardProcessor::AddDnsServer(const IpAddr &sin) {
   target->push_back(sin);
 }
 
+//设置虚拟网卡地址
 bool WireguardProcessor::SetTunAddress(const WgCidrAddr &addr) {
   WgCidrAddr *target = (addr.size == 128) ? &tun6_addr_ : &tun_addr_;
   if (target->size != 0)
@@ -66,20 +67,24 @@ bool WireguardProcessor::SetTunAddress(const WgCidrAddr &addr) {
   return true;
 }
 
+//清除虚拟网卡地址
 void WireguardProcessor::ClearTunAddress() {
   tun_addr_.size = 0;
   tun6_addr_.size = 0;
 }
 
+//添加一个路由排除IP
 void WireguardProcessor::AddExcludedIp(const WgCidrAddr &cidr_addr) {
   excluded_ips_.push_back(cidr_addr);
 }
 
+//设置最大UDP包长
 void WireguardProcessor::SetMtu(int mtu) {
   if (mtu >= 576 && mtu <= 10000)
     mtu_ = mtu;
 }
 
+//设置路由模式
 void WireguardProcessor::SetAddRoutesMode(bool mode) {
   add_routes_mode_ = mode;
 }
@@ -607,6 +612,7 @@ static NOINLINE void ScrambleUnscrambleAndWrite(Packet *packet, ScramblerSiphash
 #endif // WITH_HEADER_OBFUSCATION
 }
 
+//当UDP写入一个数据包
 void WireguardProcessor::DoWriteUdpPacket(Packet *packet) {
   stats_.udp_packets_out++;
   stats_.udp_bytes_out += packet->size;
@@ -674,6 +680,7 @@ bool WireguardProcessor::IsMainThreadPacket(Packet *packet) {
 }
 
 // Handles an incoming WireGuard packet from the UDP side, decrypt etc.
+// 处理一个收到的UDP数据包，解密等等
 void WireguardProcessor::HandleUdpPacket(Packet *packet, bool overload) {
   uint32 type;
 
@@ -686,13 +693,16 @@ void WireguardProcessor::HandleUdpPacket(Packet *packet, bool overload) {
   stats_.udp_bytes_in += packet->size;
   stats_.udp_packets_in++;
 
+  //收到包长度不足，跳转产物处理
   if (packet->size < sizeof(uint32))
     goto invalid_size;
+  
   type = ReadLE32((uint32*)packet->data);
   if (type == MESSAGE_DATA) {
     if (packet->size < sizeof(MessageData))
       goto invalid_size;
-    HandleDataPacket(packet);
+    HandleDataPacket(packet);//处理一个正常的数据转发包
+
 #if WITH_SHORT_HEADERS
   } else if (type & WG_SHORT_HEADER_BIT) {
     HandleShortHeaderFormatPacket(type, packet);
@@ -701,7 +711,7 @@ void WireguardProcessor::HandleUdpPacket(Packet *packet, bool overload) {
     assert(dev_.IsMainThread());
     if (packet->size != sizeof(MessageHandshakeCookie) || !dev_.is_private_key_initialized())
       goto invalid_size;
-    HandleHandshakeCookiePacket(packet);
+    HandleHandshakeCookiePacket(packet);//处理第三次握手包
   } else if (type == MESSAGE_HANDSHAKE_INITIATION) {
     assert(dev_.IsMainThread());
     if (WITH_HANDSHAKE_EXT ? (packet->size < sizeof(MessageHandshakeInitiation)) : (packet->size != sizeof(MessageHandshakeInitiation)) || 
@@ -709,14 +719,14 @@ void WireguardProcessor::HandleUdpPacket(Packet *packet, bool overload) {
       goto invalid_size;
     stats_.handshakes_in++;
     if (CheckIncomingHandshakeRateLimit(packet, overload))
-      HandleHandshakeInitiationPacket(packet);
+      HandleHandshakeInitiationPacket(packet);//处理一次握手包
   } else if (type == MESSAGE_HANDSHAKE_RESPONSE) {
     assert(dev_.IsMainThread());
     if (WITH_HANDSHAKE_EXT ? (packet->size < sizeof(MessageHandshakeResponse)) : (packet->size != sizeof(MessageHandshakeResponse)) || 
         !dev_.is_private_key_initialized())
       goto invalid_size;
     if (CheckIncomingHandshakeRateLimit(packet, overload))
-      HandleHandshakeResponsePacket(packet);
+      HandleHandshakeResponsePacket(packet);//处理二次握手包
   } else {
     // unknown packet
 invalid_size:
