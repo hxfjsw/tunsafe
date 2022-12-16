@@ -196,12 +196,12 @@ enum {
 };
 
 enum {
-  WG_FEATURES_COUNT = 6,              //最大失败次数             
-  WG_FEATURE_ID_SHORT_HEADER = 0,    // Supports short headers
-  WG_FEATURE_ID_SHORT_MAC = 1,       // Supports 8-byte MAC
-  WG_FEATURE_ID_IPZIP = 2,           // Using ipzip
-  WG_FEATURE_ID_SKIP_KEYID_IN = 4,   // Skip keyid for incoming packets
-  WG_FEATURE_ID_SKIP_KEYID_OUT = 5,  // Skip keyid for outgoing packets
+  WG_FEATURES_COUNT = 6, //最大功能数量
+  WG_FEATURE_ID_SHORT_HEADER = 0, // 支持短头
+  WG_FEATURE_ID_SHORT_MAC = 1, // 支持 8 字节 MAC
+  WG_FEATURE_ID_IPZIP = 2, // 使用 ipzip
+  WG_FEATURE_ID_SKIP_KEYID_IN = 4, // 跳过入站数据包的 keyid
+  WG_FEATURE_ID_SKIP_KEYID_OUT = 5, // 跳过出站数据包的 keyid
 };
 
 enum {
@@ -212,7 +212,7 @@ enum {
 };
 
 struct WgPacketCompressionVer01 {
-  uint16 version;      // Packet compressor version
+  uint16 version;      // 数据包压缩版本号
   uint8 ttl;           // Guessed TTL
   uint8 flags;         // Subnet length and packet direction
   uint8 ipv4_addr[4];  // IPV4 address of endpoint
