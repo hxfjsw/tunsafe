@@ -283,9 +283,7 @@ struct WgAddrEntry {
  
 
 
-  // Ensure there's at least 1 minute between we allow registering
-  // a new key in this table. This means that each key will have
-  // a life time of at least 3 minutes.
+  //确保在我们允许在此表中注册新键之间至少有1分钟。这意味着每个键将至少具有3分钟的生命周期。 
   uint64 time_of_last_insertion;
 
   // 三个映射到此地址条目的键数组
@@ -328,9 +326,7 @@ public:
   //macos，linux，windows都有不同的虚拟网卡
   class Delegate {
   public:
-    // This is called from the main thread whenever a public key was not found in the WgDevice,
-    // return true to try again or false to fail. The packet can be copied and saved
-    // to resume a handshake later on.
+    //这个函数将会从主线程中被调用，当在WgDevice中未找到公钥时，返回true表示重新尝试，返回false表示失败。该数据包可以被复制和保存，以便稍后恢复握手过程。 
     virtual bool HandleUnknownPeerId(uint8 public_key[WG_PUBLIC_KEY_LEN], Packet *packet) = 0;
   };
 
