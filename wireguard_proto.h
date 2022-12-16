@@ -273,22 +273,23 @@ struct WgAddrEntry {
     size_t operator()(const IpPort &a) const;
   };
 
-  // The id of the addr entry, so we can delete ourselves
+ 
+  // 该地址条目的 ID，以便我们可以删除自身
   IpPort addr_entry_id;
-
-  // This entry gets erased when there's no longer any key pointing at it.
+  // 当没有指向它的键时，此条目将被删除
   uint8 ref_count;
-
-  // Index of the next slot 0-2 where we'll insert the next key.
+  // 下一个将插入下一个键的槽 0-2 的索引
   uint8 next_slot;
+ 
+
 
   // Ensure there's at least 1 minute between we allow registering
   // a new key in this table. This means that each key will have
   // a life time of at least 3 minutes.
   uint64 time_of_last_insertion;
 
-  // The three keys.
-  WgKeypair *keys[3];
+  // 三个映射到此地址条目的键数组
+  Key keys[3]; 
 
   WgAddrEntry(const IpPort &addr_entry_id) 
       : addr_entry_id(addr_entry_id), ref_count(0), next_slot(0), time_of_last_insertion(0) {
